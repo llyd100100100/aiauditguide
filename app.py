@@ -67,14 +67,17 @@ def main_app(user):
         st.session_state['user'] = None
         st.rerun()
 
-    st.title("🛡️ AI-Audit-Reviewer (Cloud Native)")
+    st.title("🛡️ AI-Audit-Reviewer (Phase 1 Beta)")
     st.markdown("""
-    **Secure Audit Log Analysis** utilizing Google Gemini Flash.
+    **Smart Assistant for Security Audit** (Prototype)
     
-    - **Raw Files**: Auto-backed up to secure **Admin Vault** (Supabase Storage).
-    - **Audit Trail**: All Q&A is logged to **Supabase Audit DB**.
+    This tool helps you analyze audit logs using Google Gemini Flash.
     
-    *Enterprise-grade security for your audit logs.*
+    - **🔍 Smart Analysis**: Detect anomalies and summarize events instantly.
+    - **� Interactive Chat**: Ask questions about your logs in natural language.
+    - **🔒 Privacy First**: Sensitive personal information (PII) is masked locally before analysis.
+    
+    *Note: This is an early prototype for testing purposes.*
     """)
 
     auth = AuthManager() # For cloud access access
