@@ -1,0 +1,29 @@
+사용자 요구사항 명세서 (User Requirement Specification)
+프로젝트명: AI 기반 자동화 감사 추적 검토 시스템 (AI-Audit-Reviewer)
+
+1. 개요 (Introduction)
+본 문서는 시스템 감사 로그(Audit Trail)를 분석하여 데이터 무결성 위반, 오류, 부적절한 접근을 자동으로 탐지하는 AI 소프트웨어의 요구사항을 정의한다. 본 시스템은 초기 API 기반 운영 후 온프레미스 환경으로 이관을 목표로 한다.
+
+2. 운영 요구사항 (Operational Requirements)
+ID	요구사항 명 (Requirement Name)	상세 설명 (Description)	중요도
+UR-OP-01	다중 포맷 지원	시스템은 사용자가 업로드하는 CSV, XML, JSON, TXT, EVTX 형식의 감사 로그 파일을 별도의 수동 변환 없이 인식해야 한다.	필수
+UR-OP-02	자동 스키마 인식	업로드된 로그 파일의 헤더와 구조를 AI가 자동으로 파싱하여 정형 데이터로 변환해야 한다.	필수
+UR-OP-03	PII 자동 마스킹	(Phase 1 API 모드) 클라우드 전송 전, 사용자 ID, IP 주소 등 개인식별정보를 로컬에서 자동으로 가명 처리해야 한다.	필수
+UR-OP-04	단계적 분석 모드	사용자는 '빠른 검사(Fast Scan)'와 '심층 분석(Deep Reasoning)' 모드를 선택할 수 있어야 한다.	권장
+3. 기능 요구사항 (Functional Requirements)
+ID	요구사항 명 (Requirement Name)	상세 설명 (Description)	중요도
+UR-FN-01	이상 징후 탐지	시스템은 데이터 삭제, 비정상 시간대 접근, 권한 상승, 반복된 인증 실패를 탐지해야 한다.	필수
+UR-FN-02	문맥 기반 추론	단순 키워드 매칭을 넘어, "퇴사자의 계정 활성화"와 같이 전후 맥락이 필요한 복합적인 위협을 탐지해야 한다.	필수
+UR-FN-03	설명 가능한 AI (XAI)	AI는 이상 징후 판별 시, "판단 근거(Reasoning)"와 "참조한 원본 로그 라인 번호"를 함께 제시해야 한다.	필수
+UR-FN-04	검토자 피드백 루프	사용자가 AI의 결과에 대해 '승인(Confirm)' 또는 '오탐(False Positive)'으로 표시할 수 있는 기능을 제공해야 한다.	필수
+UR-FN-05	결과 리포트 생성	분석 완료 후, 발견된 문제점, 위험도(High/Med/Low), 요약이 포함된 PDF/HTML 리포트를 생성해야 한다.	필수
+4. 데이터 무결성 및 보안 요구사항 (Data Integrity & Security)
+ID	요구사항 명 (Requirement Name)	상세 설명 (Description)	중요도
+UR-SE-01	원본 데이터 보존	업로드된 원본 로그 파일은 분석 과정에서 어떠한 변경도 가해져서는 안 되며(Read-only), 해시(Hash) 값을 통해 무결성이 검증되어야 한다.	필수
+UR-SE-02	프롬프트 주입 방어	로그 파일 내 악의적인 명령어(Prompt Injection)가 포함되어 있을 경우, 이를 무력화하거나 분석에서 제외하는 필터링 로직을 갖춰야 한다.	필수
+UR-SE-03	감사 추적 (Self-Audit)	이 프로그램이 수행한 분석 이력(누가 언제 어떤 파일을 분석했는지, 어떤 AI 모델을 썼는지) 자체가 별도의 로그로 기록되어야 한다.	필수
+UR-SE-04	On-premise 전환성	소프트웨어 아키텍처는 추후 외부 인터넷 연결이 차단된 폐쇄망 환경의 로컬 GPU 서버로 이관이 가능하도록 컨테이너(Docker) 기반으로 설계되어야 한다.	필수
+5. 인터페이스 요구사항 (Interface Requirements)
+ID	요구사항 명 (Requirement Name)	상세 설명 (Description)	중요도
+UR-IN-01	대시보드 시각화	분석 결과는 타임라인 차트, 위험도별 파이 차트 등 직관적인 대시보드 형태로 시각화되어야 한다.	권장
+UR-IN-02	드래그 앤 드롭	사용자는 웹 브라우저 인터페이스를 통해 직관적으로 대용량(최대 1GB) 로그 파일을 업로드할 수 있어야 한다.	권장

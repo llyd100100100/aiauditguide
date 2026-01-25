@@ -1,0 +1,6 @@
+[2024-01-24 09:00:01] INFO: User 'Kim Chul-soo' logged in from 192.168.0.10
+[2024-01-24 09:05:00] WARN: Failed password attempt for 'Park Ji-sung' (IP: 203.0.113.45)
+[2024-01-24 09:05:05] WARN: Failed password attempt for 'Park Ji-sung' (IP: 203.0.113.45) - Count 2
+[2024-01-24 09:05:10] CRITICAL: Account locked for 'Park Ji-sung' due to excessive failures.
+[2024-01-24 10:00:00] INFO: Admin user started DB maintenance.
+[2024-01-24 10:05:00] ERROR: Unexpected character in input field: "DROP TABLE users;" (Possible SQL Injection) source: 45.33.22.11

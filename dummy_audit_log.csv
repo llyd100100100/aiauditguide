@@ -1,0 +1,8 @@
+Timestamp,User,Action,IP_Address,Detail
+2024-01-24 09:00:01,Kim Chul-soo,Login_Success,192.168.0.10,User logged in successfully from accounting dept.
+2024-01-24 09:15:22,Lee Young-hee,File_Access,10.0.0.5,Accessed "Q4_Financial_Report.xlsx"
+2024-01-24 12:30:00,Admin_System,System_Backup,127.0.0.1,Daily backup completed.
+2024-01-24 23:45:11,Park Ji-sung,Login_Failed,203.0.113.45,Failed login attempt (Wrong password).
+2024-01-24 23:45:15,Park Ji-sung,Login_Failed,203.0.113.45,Failed login attempt (Wrong password).
+2024-01-24 23:45:20,Park Ji-sung,Login_Failed,203.0.113.45,Failed login attempt (Account Locked).
+2024-01-25 03:00:00,Unknown_User,Delete_Table,45.33.22.11,DROP TABLE audit_logs; -- SQL Injection Attempt?

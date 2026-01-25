@@ -1,0 +1,23 @@
+streamlit
+pandas
+google-genai
+presidio-analyzer
+presidio-anonymizer
+spacy
+python-dotenv
+pytest
+tabulate
+tabulate
+# Streamlit Cloud needs direct link for models
+https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl
+openpyxl
+pypdf
+fpdf
+tenacity
+google-api-core
+google-auth
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+gspread
+supabase
