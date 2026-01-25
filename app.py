@@ -67,19 +67,19 @@ def main_app(user):
         st.session_state['user'] = None
         st.rerun()
 
-        st.title("🛡️ AI-Audit-Reviewer (Phase 1 Beta)")
-        st.markdown("""
-        **Smart Assistant for Security Audit** (Prototype)
+    st.title("🛡️ AI-Audit-Reviewer (Phase 1 Beta)")
+    st.markdown("""
+    **Smart Assistant for Security Audit** (Prototype)
 
-        This tool helps you analyze audit logs using Google Gemini Flash.
+    This tool helps you analyze audit logs using Google Gemini Flash.
 
-        - **🔍 Smart Analysis**: Detect anomalies and summarize events instantly.
-        - **💬 Interactive Chat**: Ask questions about your logs in natural language.
-        - **🔒 Privacy First**: Sensitive personal information (PII) is masked locally before analysis.
+    - **🔍 Smart Analysis**: Detect anomalies and summarize events instantly.
+    - **💬 Interactive Chat**: Ask questions about your logs in natural language.
+    - **🔒 Privacy First**: Sensitive personal information (PII) is masked locally before analysis.
 
-        ---
-        *Note: This is an early prototype for testing purposes.* **Contact:** Questions or feedback? Reach out to [llyd100100100@gmail.com](mailto:llyd100100100@gmail.com)
-        """)
+    ---
+    *Note: This is an early prototype for testing purposes.* **Contact:** Questions or feedback? Reach out to [llyd100100100@gmail.com](mailto:llyd100100100@gmail.com)
+    """)
 
     auth = AuthManager() # For cloud access access
     cloud = CloudManager()
@@ -114,7 +114,7 @@ def main_app(user):
                 with st.spinner("Encrypting & Backing up to Vault..."):
                      success, msg = cloud.upload_file(file_content, file_key)
                      if success:
-                         st.toast(f"File backed up to Vault")
+                         st.toast("File securely loaded.")
                          st.session_state['uploaded_files'].append(file_key)
                      else:
                          if "already exists" in msg:

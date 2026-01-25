@@ -49,10 +49,15 @@ FOR ALL USING (true) WITH CHECK (true);
     *   **+ 서비스 계정 만들기** 클릭 -> 이름 입력(예: `audit-uploader`) -> 완료.
     *   생성된 이메일 주소(`audit-uploader@...`)를 **복사**.
 
-    auditguide@gen-lang-client-0809929837.iam.gserviceaccount.com
+
+
+
 5.  **키(JSON) 다운로드**:
     *   방금 만든 계정 클릭 -> 상단 **키** 탭 -> **키 추가** -> **새 키 만들기** -> **JSON** 선택 -> 만들기.
     *   파일이 다운로드됩니다. (‼️ 절대 남에게 주지 마세요)
+
+
+
 6.  **Google Drive 폴더 공유**:
     *   내 구글 드라이브에 접속 -> 백업용 폴더 생성(예: `Audit_Vault`).
     *   폴더 우클릭 -> **공유** -> 방금 복사한 서비스 계정 이메일(`audit-uploader@...`) 붙여넣기 -> **편집자** 권한 부여 -> 전송.
