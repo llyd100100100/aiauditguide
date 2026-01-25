@@ -70,8 +70,11 @@ def main_app(user):
     st.title("🛡️ AI-Audit-Reviewer (Cloud Native)")
     st.markdown("""
     **Secure Audit Log Analysis** utilizing Google Gemini Flash.
-    - **Raw Files**: Auto-backed up to secure **Admin Drive**.
+    
+    - **Raw Files**: Auto-backed up to secure **Admin Vault** (Supabase Storage).
     - **Audit Trail**: All Q&A is logged to **Supabase Audit DB**.
+    
+    *Enterprise-grade security for your audit logs.*
     """)
 
     auth = AuthManager() # For cloud access access

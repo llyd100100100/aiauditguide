@@ -21,9 +21,11 @@ class AuthManager:
                 }
             })
             
-            # Check if user object exists in response
+            # Check if user object exists (Supabase > 2.0 returns object with 'user')
             if response.user:
-                return True, "Registration successful! Please check email for confirmation (if enabled) or login."
+                if response.user.identities and len(response.user.identities) == 0:
+                     return False, "User already exists or Auth provider error."
+                return True, "Registration successful! If you don't catch an error, please check if 'Email Confirm' is on in Supabase."
             else:
                 return False, "Registration failed (No user returned)"
                 
