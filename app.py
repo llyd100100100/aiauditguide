@@ -67,18 +67,19 @@ def main_app(user):
         st.session_state['user'] = None
         st.rerun()
 
-    st.title("🛡️ AI-Audit-Reviewer (Phase 1 Beta)")
-    st.markdown("""
-    **Smart Assistant for Security Audit** (Prototype)
-    
-    This tool helps you analyze audit logs using Google Gemini Flash.
-    
-    - **🔍 Smart Analysis**: Detect anomalies and summarize events instantly.
-    - **� Interactive Chat**: Ask questions about your logs in natural language.
-    - **🔒 Privacy First**: Sensitive personal information (PII) is masked locally before analysis.
-    
-    *Note: This is an early prototype for testing purposes.*
-    """)
+        st.title("🛡️ AI-Audit-Reviewer (Phase 1 Beta)")
+        st.markdown("""
+        **Smart Assistant for Security Audit** (Prototype)
+
+        This tool helps you analyze audit logs using Google Gemini Flash.
+
+        - **🔍 Smart Analysis**: Detect anomalies and summarize events instantly.
+        - **💬 Interactive Chat**: Ask questions about your logs in natural language.
+        - **🔒 Privacy First**: Sensitive personal information (PII) is masked locally before analysis.
+
+        ---
+        *Note: This is an early prototype for testing purposes.* **Contact:** Questions or feedback? Reach out to [llyd100100100@gmail.com](mailto:llyd100100100@gmail.com)
+        """)
 
     auth = AuthManager() # For cloud access access
     cloud = CloudManager()
@@ -101,16 +102,27 @@ def main_app(user):
 
     if uploaded_file:
         try:
-            # --- 1. Cloud Backup (Immediate) ---
-            file_content = uploaded_file.getvalue()
-            # Only upload if not already done for this session/file (Optional optimization)
-            with st.spinner("Encrypting & Backing up to Vault..."):
-                 success, msg = cloud.upload_file(file_content, f"{user_email}_{uploaded_file.name}")
-                 if success:
-                     st.toast(f"File backed up to Vault (ID: {msg[-6:]}...)")
-                 else:
-                     st.warning(f"Backup Warning: {msg}")
+            # --- 1. Cloud Backup (Deduped) ---
+            if 'uploaded_files' not in st.session_state:
+                st.session_state['uploaded_files'] = []
 
+            file_key = f"{user_email}_{uploaded_file.name}"
+            
+            # Only upload if not previously uploaded in this session
+            if file_key not in st.session_state['uploaded_files']:
+                file_content = uploaded_file.getvalue()
+                with st.spinner("Encrypting & Backing up to Vault..."):
+                     success, msg = cloud.upload_file(file_content, file_key)
+                     if success:
+                         st.toast(f"File backed up to Vault")
+                         st.session_state['uploaded_files'].append(file_key)
+                     else:
+                         if "already exists" in msg:
+                             # Check if we should ignore existing files (e.g. re-upload same file)
+                             st.session_state['uploaded_files'].append(file_key) # Mark as done to stop trying
+                         else:
+                             st.warning(f"Backup Warning: {msg}")
+            
             # --- 2. Local Processing ---
             file_ext = uploaded_file.name.split('.')[-1].lower()
             data_content = None
