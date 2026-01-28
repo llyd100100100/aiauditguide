@@ -182,7 +182,7 @@ def main_app(user):
                 
                 # Context Prep
                 if data_type == "dataframe":
-                    data_context = anonymized_content.head(50).to_markdown(index=False)
+                    data_context = anonymized_content.head(5000).to_markdown(index=False)
                 else:
                     data_context = anonymized_content[:5000]
 
