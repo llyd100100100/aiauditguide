@@ -16,12 +16,39 @@ class SecurityEngine:
             cls._instance = super(SecurityEngine, cls).__new__(cls)
             cls._instance.analyzer = AnalyzerEngine()
             cls._instance.anonymizer = AnonymizerEngine()
-            logger.info("SecurityEngine initialized with Presidio Analyzer & Anonymizer")
+            # Session-specific salt for deterministic hashing
+            import secrets
+            cls._instance.salt = secrets.token_hex(16)
+            logger.info("SecurityEngine initialized with Presidio & Session Salt")
         return cls._instance
+
+    def _generate_pseudonym(self, entity_type: str, value: str) -> str:
+        """
+        Generates a consistent, short pseudonym using HMAC-SHA256.
+        Format: Type_HashPrefix (e.g., PERSON_a1b2c3)
+        """
+        import hashlib
+        import hmac
+        
+        # Use session salt + value to create hash
+        hash_obj = hmac.new(self.salt.encode(), value.encode(), hashlib.sha256)
+        short_hash = hash_obj.hexdigest()[:6] # First 6 chars are enough for collision resistance in small contexts
+        
+        # Custom prefixes for readability
+        prefix_map = {
+            "PERSON": "User",
+            "IP_ADDRESS": "IP",
+            "EMAIL_ADDRESS": "Email",
+            "PHONE_NUMBER": "Phone"
+        }
+        prefix = prefix_map.get(entity_type, entity_type)
+        
+        return f"<{prefix}_{short_hash}>"
 
     def anonymize_text(self, text: str) -> str:
         """
-        Analyzes and anonymizes PII in the given text using Presidio.
+        Analyzes and pseudonymizes PII in the given text using Presidio + Hashing.
+        Conserves Referential Integrity (Same input -> Same output).
         """
         if not isinstance(text, str) or not text:
             return text
@@ -30,18 +57,19 @@ class SecurityEngine:
             # Analyze
             results = self.analyzer.analyze(text=text, entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "IP_ADDRESS"], language='en')
             
-            # Anonymize with replacement tags
-            anonymized_result = self.anonymizer.anonymize(
-                text=text,
-                analyzer_results=results,
-                operators={
-                    "PERSON": OperatorConfig("replace", {"new_value": "<PERSON>"}),
-                    "PHONE_NUMBER": OperatorConfig("replace", {"new_value": "<PHONE>"}),
-                    "EMAIL_ADDRESS": OperatorConfig("replace", {"new_value": "<EMAIL>"}),
-                    "IP_ADDRESS": OperatorConfig("replace", {"new_value": "<IP_ADDRESS>"}),
-                }
-            )
-            return anonymized_result.text
+            # Sort results by start index in descending order to replace from end
+            # This prevents index shifting issues
+            results.sort(key=lambda x: x.start, reverse=True)
+            
+            anonymized_text = text
+            for res in results:
+                original_value = text[res.start:res.end]
+                pseudonym = self._generate_pseudonym(res.entity_type, original_value)
+                
+                # Replace in text
+                anonymized_text = anonymized_text[:res.start] + pseudonym + anonymized_text[res.end:]
+            
+            return anonymized_text
         except Exception as e:
             logger.error(f"Error anonymizing text: {e}")
             return text
