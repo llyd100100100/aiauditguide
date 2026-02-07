@@ -221,13 +221,47 @@ def main_app(user):
                     if not os.getenv("GEMINI_API_KEY"):
                         st.error("Missing API Key")
                     else:
-                        with st.spinner("Analyzing..."):
-                            result = ai_engine.analyze_log(data_context)
-                            st.markdown(result)
-                            # Log to Cloud
-                            cloud.log_chat(user_email, "Full Audit Request", result[:500] + "...")
+                        with st.spinner("Analyzing (Phase 0: Sliding Window & Phase 4: JSON Output)..."):
+                            result_text = ai_engine.analyze_log(data_context)
+                            
+                            # --- Phase 4: Structured Output Handling ---
+                            import json
+                            import re
 
-                user_query = st.text_input("Ask specific question")
+                            try:
+                                # Clean potential code blocks from response
+                                clean_json = result_text.replace("```json", "").replace("```", "").strip()
+                                audit_report = json.loads(clean_json)
+                                
+                                # 1. Executive Summary
+                                st.subheader("📊 Audit Summary")
+                                status_color = "red" if audit_report.get("compliance_status") == "NON_COMPLIANT" else "orange" if audit_report.get("compliance_status") == "WARNING" else "green"
+                                st.markdown(f":{status_color}[**Status: {audit_report.get('compliance_status')}**]")
+                                st.info(audit_report.get("executive_summary"))
+
+                                # 2. Findings Table
+                                st.subheader("🚩 Detected Findings")
+                                findings = audit_report.get("findings", [])
+                                if findings:
+                                    df_findings = pd.DataFrame(findings)
+                                    st.dataframe(df_findings, use_container_width=True)
+                                else:
+                                    st.success("No critical violations found.")
+
+                                # 3. Recommendations
+                                st.subheader("✅ Recommendations")
+                                for rec in audit_report.get("recommendations", []):
+                                    st.markdown(f"- {rec}")
+
+                                # Log to Cloud (JSON Summary)
+                                cloud.log_chat(user_email, "Full Audit Request (JSON)", str(audit_report)[:500])
+
+                            except json.JSONDecodeError:
+                                st.warning("⚠️ Raw output returned (JSON Parsing Failed)")
+                                st.markdown(result_text)
+                                cloud.log_chat(user_email, "Full Audit Request (Raw)", result_text[:500])
+                            
+                user_query = st.text_input("Ask specific question (Chat Mode)")
                 if st.button("Ask AI"):
                     if user_query and os.getenv("GEMINI_API_KEY"):
                             with st.spinner("Consulting..."):
