@@ -24,13 +24,15 @@ class AIEngine:
         stop=stop_after_attempt(7),
         wait=wait_exponential(multiplier=2, min=5, max=60)
     )
-    def _generate_content_with_retry(self, prompt, context):
-        return self.client.models.generate_content(
-            model=self.model_id,
-            contents=[prompt, context],
-            config=types.GenerateContentConfig(
+    def _generate_content_with_retry(self, contents, config=None):
+        if config is None:
+            config = types.GenerateContentConfig(
                 temperature=0.1, 
             )
+        return self.client.models.generate_content(
+            model=self.model_id,
+            contents=contents,
+            config=config
         )
 
     def analyze_log(self, log_data: str, user_query: str = "") -> str:
@@ -81,21 +83,21 @@ class AIEngine:
         Produce a valid **JSON** object with the following schema:
         {{
             "compliance_status": "COMPLIANT" | "WARNING" | "NON_COMPLIANT",
-            "executive_summary": "Brief summary in Korean...",
+            "executive_summary": "Brief summary in English then Korean...",
             "findings": [
                 {{
                     "timestamp": "YYYY-MM-DD HH:MM:SS",
                     "user_id": "UserID",
                     "severity": "CRITICAL" | "MAJOR" | "MINOR",
                     "category": "Data Deletion" | "Testing into Compliance" | "Unauthoried Access" | "Other",
-                    "description": "Description in Korean...",
+                    "description": "Description in English then Korean...",
                     "evidence": "Log snippet...",
                     "regulation": "21 CFR Part 11... or ALCOA+..."
                 }}
             ],
-            "recommendations": ["Action item 1", "Action item 2"]
+            "recommendations": ["Action item 1 (English/Korean)", "Action item 2"]
         }}
-        **IMPORTANT: Output ONLY JSON. All descriptions must be in KOREAN.**
+        **IMPORTANT: Output ONLY JSON. All descriptions must be in English first, followed by Korean translation.**
         """
 
         # --- Phase 0: Sliding Window Strategy ---
@@ -118,9 +120,10 @@ class AIEngine:
                 ### INSTRUCTION
                 Answer the user's question based on the log chunk provided.
                 **IMPORTANT:**
-                1. Answer in **KOREAN (한국어)**.
-                2. Use clear bullet points.
-                3. **Insert an empty line between each finding/point** for better readability. (항목 사이 공백 추가)
+                1. first write your answer in **ENGLISH**.
+                2. Then provide a **KOREAN TRANSLATION (한국어 번역)** below it.
+                3. Use clear bullet points.
+                4. **Insert an empty line between each finding/point** for better readability. (항목 사이 공백 추가)
                 
                 LOG CHUNK {i+1}:
                 {chunk}
@@ -147,11 +150,8 @@ class AIEngine:
                 )
 
             try:
-                response = self.client.models.generate_content(
-                    model=self.model_id,
-                    contents=[prompt],
-                    config=config
-                )
+                # Using the internal method with retry logic settings
+                response = self._generate_content_with_retry(contents=[prompt], config=config)
                 full_report.append(response.text)
             except Exception as e:
                 logger.error(f"AI Analysis failed for chunk {i}: {e}")
