@@ -253,6 +253,20 @@ def main_app(user):
                                 for rec in audit_report.get("recommendations", []):
                                     st.markdown(f"- {rec}")
 
+                                # 4. Detailed Report (Markdown Style - User Preference)
+                                st.divider()
+                                st.subheader("📝 Detailed Audit Report")
+                                
+                                report_md = ""
+                                for idx, finding in enumerate(findings, 1):
+                                    report_md += f"### [Finding #{idx}] {finding.get('category')} ({finding.get('severity')})\n"
+                                    report_md += f"**Description:**\n{finding.get('description')}\n\n"
+                                    report_md += f"- **Evidence:** `{finding.get('evidence')}`\n"
+                                    report_md += f"- **Regulation:** {finding.get('regulation')}\n\n"
+                                    report_md += "---\n\n\n"
+                                
+                                st.markdown(report_md)
+
                                 # Log to Cloud (JSON Summary)
                                 cloud.log_chat(user_email, "Full Audit Request (JSON)", str(audit_report)[:500])
 
