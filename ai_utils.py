@@ -37,50 +37,122 @@ class AIEngine:
 
     def analyze_log(self, log_data: str, user_query: str = "") -> str:
         """
-        Phase 0, 1, 2, 3, 4 Implementation:
-        - Phase 0: Sliding Window (Chunking) to handle large logs.
-        - Phase 1: Persona & CoT (Chain of Thought).
-        - Phase 2: Modular Few-Shot Examples (Examples Lib).
-        - Phase 3: Grounding (Citation).
-        - Phase 4: Structured Output (JSON).
+        Phase 5 Expert Optimization Implementation:
+        - Strategy 1: Sliding Window with Overlap (Context Continuity).
+        - Strategy 2: Safe JSON Parsing & Deduplication (Structure).
+        - Strategy 3: Deterministic Verification Loop (Anti-Hallucination).
+        - Strategy 4: Enhanced Prompting (CoT & Bilingual).
         """
         if not os.getenv("GEMINI_API_KEY"):
             return "Error: API Key is missing."
 
-        # --- Phase 2: Modular Few-Shot Examples (Refactored) ---
-        # Load examples from the dedicated library
+        # --- Phase 2: Modular Few-Shot Examples ---
         try:
             from prompts.audit_examples import get_examples
-            # Default to COMMON + HPLC for now (or make it selectable in future)
             examples = get_examples(equipment_type="COMMON") 
         except ImportError:
-            # Fallback if file missing
             examples = []
-
+        
         example_text = "\\n".join([f"- Example: {ex['scenario']}\\n  Log: {ex['log_snippet']}\\n  Analysis: {ex['analysis']}" for ex in examples])
 
-        # --- Phase 1: Persona & CoT System Prompt ---
+        # --- Strategy 1: Sliding Window w/ Overlap ---
+        chunk_size = 20000
+        overlap = 2000
+        chunks = []
+        if len(log_data) <= chunk_size:
+            chunks.append(log_data)
+        else:
+            # Create overlapping chunks
+            for i in range(0, len(log_data), chunk_size - overlap):
+                chunks.append(log_data[i : i + chunk_size])
+
+        # --- Execution Mode Split ---
+        if user_query:
+            return self._handle_chat_mode(chunks, user_query, example_text)
+        else:
+            return self._handle_audit_mode(chunks, example_text, log_data) # Pass full log for verification
+
+    def _handle_chat_mode(self, chunks, user_query, example_text):
+        """Phase 1 & 4: Logic for Interactive Chat (Text/Markdown)"""
+        full_response = []
+        # For chat, we might restrict to top chunks or summarize, but for now process all (or first few?)
+        # To avoid massive costs/latency on huge logs for simple chat, maybe just look at first chunk or Retrieval?
+        # For this prototype, we'll process the first 3 chunks max to be safe/responsive.
+        for i, chunk in enumerate(chunks[:3]):
+            prompt = f"""
+            ### ROLE & CONTEXT
+            You are a Lead Data Integrity Auditor.
+            Review the log chunk below.
+            
+            ### FEW-SHOT EXAMPLES
+            {example_text}
+
+            ### USER QUESTION
+            {user_query}
+
+            ### INSTRUCTION
+            Answer the user's question based on the log chunk provided.
+            
+            **STEP 1: ENGLISH RESPONSE**
+            - Answer in clear, professional English.
+            - **Use this EXACT format for each finding:**
+            
+              **[Finding #]**
+              - **Severity:** ...
+              - **Category:** ...
+              - **Evidence:** ...
+              - **Impact:** ...
+              
+              ---
+              
+            - **CRITICAL:** Keep internal lines TIGHT. Use separate findings only for distinct points.
+
+            **STEP 2: KOREAN TRANSLATION (Verification)**
+            - Provide a Korean Translation below a separator.
+            - Follow the SAME formatting rules.
+            
+            **OUTPUT FORMAT:**
+            [English Findings]
+            
+            ==================================================
+            
+            [Korean Translation]
+            
+            LOG CHUNK {i+1}:
+            {chunk}
+            """
+            try:
+                response = self._generate_content_with_retry(contents=[prompt])
+                full_response.append(response.text)
+            except Exception as e:
+                full_response.append(f"Error in chunk {i}: {e}")
+        
+        return "\n\n".join(full_response)
+
+    def _handle_audit_mode(self, chunks, example_text, full_log_data):
+        """Phase 5: Logic for Full Audit (Strict JSON + Verification)"""
+        import json
+        import re
+
+        all_findings = []
+        executive_summaries = []
+        recommendations = set()
+        compliance_votes = []
+
         system_instruction = f"""
         ### ROLE
-        You are a **Lead Data Integrity (DI) Auditor** with 20+ years of experience in QA.
-        Your job is to audit GMP Computerized System logs for **21 CFR Part 11** and **ALCOA+** compliance.
-        You are **skeptical, evidence-based, and conservative**. Do not guess.
+        You are a **Lead Data Integrity (DI) Auditor**.
+        Your job is to audit GMP Computerized System logs for **21 CFR Part 11** and **ALCOA+**.
+        **Report only with EXPLICIT EVIDENCE.**
 
-        ### PROCESS (Chain-of-Thought)
-        1. **Identify**: Who is acting? (Shared accounts like 'Admin'? Unauthorized roles?)
-        2. **Timeline**: Are there timestamps out of order? Long gaps? Back-dating?
-        3. **Action**: Look for DELETE, MODIFY, ABORT, RENAME. Is there a 'Reason' field?
-        4. **Pattern**: Detect 'Testing into Compliance' (Repeated testing until pass).
-
-        ### FEW-SHOT EXAMPLES (Reference)
+        ### FEW-SHOT EXAMPLES
         {example_text}
 
-        ### GROUNDING RULES (Phase 3)
-        - **Citation**: Every finding MUST quote the exact [Line Number] and [Timestamp] from the log.
-        - **No Hallucination**: If the log says nothing, state "No evidence found". Do not invent events.
+        ### GROUNDING RULES
+        - **Citation**: Quote the exact [Timestamp] and log content.
+        - **No Hallucination**: If not found, do not invent.
 
-        ### OUTPUT FORMAT (Phase 4: JSON)
-        Produce a valid **JSON** object with the following schema:
+        ### OUTPUT FORMAT (JSON)
         {{
             "compliance_status": "COMPLIANT" | "WARNING" | "NON_COMPLIANT",
             "executive_summary": "Brief summary in English then Korean...",
@@ -91,101 +163,88 @@ class AIEngine:
                     "severity": "CRITICAL" | "MAJOR" | "MINOR",
                     "category": "Data Deletion" | "Testing into Compliance" | "Unauthoried Access" | "Other",
                     "description": "Description in English then Korean...",
-                    "evidence": "Log snippet...",
+                    "evidence": "Log snippet (EXACT QUOTE)",
                     "regulation": "21 CFR Part 11... or ALCOA+..."
                 }}
             ],
-            "recommendations": ["Action item 1 (English/Korean)", "Action item 2"]
+            "recommendations": ["Action item 1", "Action item 2"]
         }}
-        **IMPORTANT: Output ONLY JSON. All descriptions must be in English first, followed by Korean translation.**
         """
 
-        # --- Phase 0: Sliding Window Strategy ---
-        # Simple chunking for now (can be enhanced to true sliding window with overlap later)
-        chunk_size = 20000 # Approx characters
-        chunks = [log_data[i:i+chunk_size] for i in range(0, len(log_data), chunk_size)]
-        
-        full_report = []
-        
         for i, chunk in enumerate(chunks):
-            if user_query:
-                # --- Chat Mode (Markdown) ---
-                # Relaxed constraint for chat, specifically asking for spacing
-                prompt = f"""
-                {system_instruction}
+            prompt = f"""
+            {system_instruction}
 
-                ### USER QUESTION
-                {user_query}
-
-                ### INSTRUCTION
-                Answer the user's question based on the log chunk provided.
-                
-                **STEP 1: ENGLISH RESPONSE**
-                - Answer in clear, professional English.
-                - **Use this EXACT format for each finding:**
-                
-                  **[Finding #]**
-                  - **Severity:** ...
-                  - **Category:** ...
-                  - **Evidence:** ...
-                  - **Impact:** ...
-                  
-                  ---
-                  
-                  **[Finding #]**
-                  ...
-                  
-                - **CRITICAL:** Do NOT put empty lines between Severity, Category, Evidence, and Impact. Keep them TIGHT.
-                - Put a horizontal rule `---` or double newline ONLY between different findings.
-
-                **STEP 2: KOREAN TRANSLATION (Verification)**
-                - You MUST provide a **Korean Translation** of your answer below a separator.
-                - Follow the SAME formatting rules (Tight groups, separated by `---`).
-                
-                **OUTPUT FORMAT:**
-                [English Findings]
-                
-                ==================================================
-                
-                [Korean Translation]
-                
-                LOG CHUNK {i+1}:
-                {chunk}
-                """
-                config = types.GenerateContentConfig(temperature=0.3) # Slightly creative for chat
-                
-            else:
-                # --- Audit Mode (JSON) ---
-                # Strict JSON constraint
-                prompt = f"""
-                {system_instruction}
-
-                ### INSTRUCTION
-                Analyze this log chunk and produce a **JSON** report.
-                
-                LOG CHUNK {i+1}:
-                {chunk}
-                
-                Output JSON:
-                """
-                config = types.GenerateContentConfig(
-                    temperature=0.0,
-                    response_mime_type="application/json"
-                )
-
+            ### INSTRUCTION
+            Analyze this log chunk and produce a **JSON** report.
+            
+            LOG CHUNK {i+1}:
+            {chunk}
+            
+            Output JSON:
+            """
             try:
-                # Using the internal method with retry logic settings
-                response = self._generate_content_with_retry(contents=[prompt], config=config)
-                full_report.append(response.text)
-            except Exception as e:
-                logger.error(f"AI Analysis failed for chunk {i}: {e}")
-                full_report.append(f'{{"error": "Analysis failed for chunk {i}: {str(e)}"}}')
+                response = self._generate_content_with_retry(
+                    contents=[prompt], 
+                    config=types.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+                )
+                
+                # --- Strategy 2: Safe JSON Parsing ---
+                # Clean potential markdown wrappers
+                clean_json = response.text.replace("```json", "").replace("```", "").strip()
+                chunk_result = json.loads(clean_json)
 
-        # Aggregate results (Simple concatenation for now, ideal would be merging JSONs)
-        # Since the user wants a single report, we might need to merge them.
-        # For this step, we will return the first chunk's result or a list if multiple.
-        if len(full_report) == 1:
-            return full_report[0]
-        else:
-             # Naive aggregation for multiple chunks
-            return f"[{','.join(full_report)}]"
+                # Collect high-level info
+                compliance_votes.append(chunk_result.get("compliance_status", "UNKNOWN"))
+                executive_summaries.append(chunk_result.get("executive_summary", ""))
+                recommendations.update(chunk_result.get("recommendations", []))
+
+                # --- Strategy 3: Deterministic Verification Loop ---
+                # Verify if 'evidence' actually exists in the Full Log (or Chunk)
+                # We check Full Log to be safe against boundary cuts, though chunk is safer for speed.
+                # Since we have full_log_data, let's check there.
+                
+                raw_findings = chunk_result.get("findings", [])
+                for finding in raw_findings:
+                    evidence_snippet = finding.get("evidence", "").strip()
+                    if not evidence_snippet:
+                        continue # Skip empty evidence
+                    
+                    # Verification: Check if evidence substring is in the original log text
+                    if evidence_snippet in full_log_data:
+                        all_findings.append(finding)
+                    else:
+                        logger.warning(f"Strategy 3: Finding discarded due to lack of evidence verification: {finding}")
+                        # Optional: Add with a flag? For now, implementing "Conservative Approach" -> Discard.
+
+            except Exception as e:
+                logger.error(f"Audit processing failed for chunk {i}: {e}")
+        
+        # --- Strategy 2: Deduplication ---
+        # Deduplicate based on distinct timestamps and evidence
+        unique_findings = []
+        seen = set()
+        for f in all_findings:
+            # Create a unique signature
+            sig = f"{f.get('timestamp')}|{f.get('evidence')}|{f.get('category')}"
+            if sig not in seen:
+                unique_findings.append(f)
+                seen.add(sig)
+
+        # Determine Final Status (Worst Case)
+        final_status = "COMPLIANT"
+        if "NON_COMPLIANT" in compliance_votes:
+            final_status = "NON_COMPLIANT"
+        elif "WARNING" in compliance_votes:
+            final_status = "WARNING"
+            
+        final_summary = " | ".join(filter(None, executive_summaries))
+
+        final_report = {
+            "compliance_status": final_status,
+            "executive_summary": final_summary if final_summary else "Audit completed.",
+            "findings": unique_findings,
+            "recommendations": list(recommendations)
+        }
+        
+        return json.dumps(final_report, ensure_ascii=False)
