@@ -122,18 +122,30 @@ class AIEngine:
                 
                 **STEP 1: ENGLISH RESPONSE**
                 - Answer in clear, professional English.
-                - Use bullet points.
-                - Keep related lines TIGHT (single spacing).
-                - Use DOUBLE NEWLINE only between major points/findings.
+                - **Use this EXACT format for each finding:**
+                
+                  **[Finding #]**
+                  - **Severity:** ...
+                  - **Category:** ...
+                  - **Evidence:** ...
+                  - **Impact:** ...
+                  
+                  ---
+                  
+                  **[Finding #]**
+                  ...
+                  
+                - **CRITICAL:** Do NOT put empty lines between Severity, Category, Evidence, and Impact. Keep them TIGHT.
+                - Put a horizontal rule `---` or double newline ONLY between different findings.
 
                 **STEP 2: KOREAN TRANSLATION (Verification)**
                 - You MUST provide a **Korean Translation** of your answer below a separator.
-                - Translate accurately and naturally for a Korean auditor.
+                - Follow the SAME formatting rules (Tight groups, separated by `---`).
                 
                 **OUTPUT FORMAT:**
-                [English Answer]
+                [English Findings]
                 
-                --- (Separator)
+                ==================================================
                 
                 [Korean Translation]
                 
