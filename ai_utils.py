@@ -107,22 +107,50 @@ class AIEngine:
         
         for i, chunk in enumerate(chunks):
             if user_query:
-                prompt = f"{system_instruction}\n\nUSER QUESTION: {user_query}\n\nLOG CHUNK {i+1}:\n{chunk}\n\nAnswer in JSON:"
+                # --- Chat Mode (Markdown) ---
+                # Relaxed constraint for chat, specifically asking for spacing
+                prompt = f"""
+                {system_instruction}
+
+                ### USER QUESTION
+                {user_query}
+
+                ### INSTRUCTION
+                Answer the user's question based on the log chunk provided.
+                **IMPORTANT:**
+                1. Answer in **KOREAN (한국어)**.
+                2. Use clear bullet points.
+                3. **Insert an empty line between each finding/point** for better readability. (항목 사이 공백 추가)
+                
+                LOG CHUNK {i+1}:
+                {chunk}
+                """
+                config = types.GenerateContentConfig(temperature=0.3) # Slightly creative for chat
+                
             else:
-                prompt = f"{system_instruction}\n\nAnalyze this log chunk for DI violations.\n\nLOG CHUNK {i+1}:\n{chunk}\n\nOutput JSON:"
+                # --- Audit Mode (JSON) ---
+                # Strict JSON constraint
+                prompt = f"""
+                {system_instruction}
+
+                ### INSTRUCTION
+                Analyze this log chunk and produce a **JSON** report.
+                
+                LOG CHUNK {i+1}:
+                {chunk}
+                
+                Output JSON:
+                """
+                config = types.GenerateContentConfig(
+                    temperature=0.0,
+                    response_mime_type="application/json"
+                )
 
             try:
-                # Using the internal method with retry logic settings
-                # Note: Generate content usually returns text. For JSON, we might need to parse it or instruct the model strictly.
-                # Gemini 1.5 Pro/Flash supports response_mime_type="application/json" but we are using the standard generate_content here.
-                # We will rely on the prompt for now.
                 response = self.client.models.generate_content(
                     model=self.model_id,
                     contents=[prompt],
-                    config=types.GenerateContentConfig(
-                        temperature=0.0, # Deterministic
-                        response_mime_type="application/json" # Creating structured output
-                    )
+                    config=config
                 )
                 full_report.append(response.text)
             except Exception as e:
