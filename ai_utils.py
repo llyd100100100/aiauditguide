@@ -38,30 +38,23 @@ class AIEngine:
         Phase 0, 1, 2, 3, 4 Implementation:
         - Phase 0: Sliding Window (Chunking) to handle large logs.
         - Phase 1: Persona & CoT (Chain of Thought).
-        - Phase 2: Modular Few-Shot Examples.
+        - Phase 2: Modular Few-Shot Examples (Examples Lib).
         - Phase 3: Grounding (Citation).
         - Phase 4: Structured Output (JSON).
         """
         if not os.getenv("GEMINI_API_KEY"):
             return "Error: API Key is missing."
 
-        # --- Phase 2: Modular Few-Shot Examples (Basis for Future Expansion) ---
-        # Future: Load dynamically based on equipment type
-        examples = [
-            {
-                "scenario": "Data Deletion without Reason",
-                "log_snippet": "2024-02-07 14:00 | User: Admin | Action: Delete File 'Run_23.dat'",
-                "analysis": "User 'Admin' deleted raw data file 'Run_23.dat' without documenting a reason (e.g., 'invalid run due to leak'). This violates 21 CFR Part 11.10(e) and ALCOA+ 'Original' principle.",
-                "severity": "CRITICAL"
-            },
-            {
-                "scenario": "Testing into Compliance",
-                "log_snippet": "2024-02-07 14:05 | Action: Sequence Aborted\n2024-02-07 14:10 | Action: Sequence Started (Pass)",
-                "analysis": "Sequence was aborted and immediately restarted to achieve a passing result. This indicates potential 'Testing into Compliance'.",
-                "severity": "MAJOR"
-            }
-        ]
-        
+        # --- Phase 2: Modular Few-Shot Examples (Refactored) ---
+        # Load examples from the dedicated library
+        try:
+            from prompts.audit_examples import get_examples
+            # Default to COMMON + HPLC for now (or make it selectable in future)
+            examples = get_examples(equipment_type="COMMON") 
+        except ImportError:
+            # Fallback if file missing
+            examples = []
+
         example_text = "\\n".join([f"- Example: {ex['scenario']}\\n  Log: {ex['log_snippet']}\\n  Analysis: {ex['analysis']}" for ex in examples])
 
         # --- Phase 1: Persona & CoT System Prompt ---
