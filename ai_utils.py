@@ -10,9 +10,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 class AIEngine:
-    def __init__(self):
-        # Using 'gemini-flash-latest' alias which appeared in the user's available model list
-        self.model_id = "gemini-flash-latest" 
+    def __init__(self, model_id="gemini-flash-latest"):
+        self.model_id = model_id
         
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -36,14 +35,13 @@ class AIEngine:
 
     def analyze_log(self, log_data: str, user_query: str = "") -> str:
         """
-        Sends audit trail logs to Gemini for GMP Data Integrity compliance analysis.
-        Focuses on ALCOA+ principles and 21 CFR Part 11 requirements.
+        Sends audit trail logs to Gemini.
         """
         if not os.getenv("GEMINI_API_KEY"):
             return "Error: API Key is missing."
 
         # GMP/DI 특화 프롬프트
-        system_instruction = """
+        system_instruction = f"""
         ### ROLE
         You are a **Lead Data Integrity (DI) Auditor** in a pharmaceutical company. 
         Your responsibility is to review the Audit Trail logs of a GMP Computerized System to ensure compliance with **21 CFR Part 11**, **EudraLex Annex 11**, and **ALCOA+ principles**.
@@ -51,6 +49,7 @@ class AIEngine:
         ### CONTEXT & RULES
         - The input data consists of anonymized audit trail logs (<USER>, <TIMESTAMP>, <ACTION>, <VALUE>).
         - **Objective:** Detect potential Data Integrity (DI) violations, data manipulation, or bad practices.
+        - **Language:** **ALL OUTPUT MUST BE IN KOREAN (한국어로 답변하세요).**
         - **Zero Tolerance:** Treat any deletion of raw data or modification of critical parameters without a clear reason as a CRITICAL violation.
 
         ### AUDIT FRAMEWORK (ALCOA+ Focus)
@@ -85,9 +84,9 @@ class AIEngine:
         """
              
         if user_query:
-            prompt = f"{system_instruction}\n\nUSER QUESTION: {user_query}\n\nPlease answer the user's question based on the provided logs."
+            prompt = f"{system_instruction}\n\nUSER QUESTION: {user_query}\n\nPlease answer the user's question based on the provided logs. **IMPORTANT: You MUST answer in KOREAN (한국어로 답변)**."
         else:
-            prompt = f"{system_instruction}\n\nPerform a comprehensive security audit summary."
+            prompt = f"{system_instruction}\n\nPerform a comprehensive security audit summary. **IMPORTANT: Write the report in KOREAN (한국어)**."
 
         try:
             # Using the internal method with retry logic

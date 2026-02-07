@@ -97,6 +97,18 @@ def main_app(user):
         if api_key_input:
             os.environ["GEMINI_API_KEY"] = api_key_input
 
+    # API Model Selection
+    model_options = {
+        "Gemini 2.0 Flash (Balanced - 2K RPM)": "gemini-2.0-flash",
+        "Gemini 2.0 Flash Lite (High Speed - 4K RPM)": "gemini-2.0-flash-lite",
+        "Gemini 1.5 Flash (Stable - 1K RPM)": "gemini-1.5-flash",
+        "Gemini 1.5 Pro (Reasoning - 150 RPM)": "gemini-1.5-pro",
+        "Gemini 2.0 Pro Exp (Experimental)": "gemini-2.0-pro-exp-02-05"
+    }
+    # Default to Flash 2.0 for best performance
+    selected_model_name = st.sidebar.selectbox("Select AI Model", list(model_options.keys()), index=0)
+    selected_model_id = model_options[selected_model_name]
+
     # Upload Section
     uploaded_file = st.sidebar.file_uploader("Upload Audit Log (CSV, Excel, TXT, PDF)", type=["csv", "xlsx", "xls", "txt", "pdf"])
 
@@ -128,36 +140,50 @@ def main_app(user):
             data_content = None
             data_type = "unknown"
 
-            # Parse
-            uploaded_file.seek(0) # Reset pointer
-            if file_ext == 'csv':
-                data_content = pd.read_csv(uploaded_file)
-                data_type = "dataframe"
-            elif file_ext in ['xlsx', 'xls']:
-                data_content = pd.read_excel(uploaded_file)
-                data_type = "dataframe"
-            elif file_ext == 'txt':
-                data_content = uploaded_file.read().decode("utf-8")
-                data_type = "text"
-            elif file_ext == 'pdf':
-                import pypdf
-                pdf_reader = pypdf.PdfReader(uploaded_file)
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-                data_content = text
-                data_type = "text"
-            
-            if data_content is not None:
-                # --- Security Phase ---
-                sec_engine = SecurityEngine()
-                anonymized_content = None
+            # --- Optimized File Processing (Cache Parsing & PII) ---
+            if 'processed_file' not in st.session_state or st.session_state.processed_file != uploaded_file.name:
+                # 1. Parse File (Only if new)
+                uploaded_file.seek(0)
+                if file_ext == 'csv':
+                    data_content = pd.read_csv(uploaded_file)
+                    data_type = "dataframe"
+                elif file_ext in ['xlsx', 'xls']:
+                    data_content = pd.read_excel(uploaded_file)
+                    data_type = "dataframe"
+                elif file_ext == 'txt':
+                    data_content = uploaded_file.read().decode("utf-8")
+                    data_type = "text"
+                elif file_ext == 'pdf':
+                    import pypdf
+                    pdf_reader = pypdf.PdfReader(uploaded_file)
+                    text = ""
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + "\n"
+                    data_content = text
+                    data_type = "text"
+                else:
+                    data_content = None
 
-                with st.spinner(f"Applying PII Firewall..."):
-                    if data_type == "dataframe":
-                        anonymized_content = sec_engine.anonymize_dataframe(data_content)
-                    else:
-                        anonymized_content = sec_engine.anonymize_text(data_content)
+                if data_content is not None:
+                     # 2. Apply PII Masking
+                    sec_engine = SecurityEngine()
+                    with st.spinner(f"Processing & Applying PII Firewall to {file_ext.upper()}..."):
+                        if data_type == "dataframe":
+                            anonymized_content = sec_engine.anonymize_dataframe(data_content)
+                        else:
+                            anonymized_content = sec_engine.anonymize_text(data_content)
+                    
+                    # 3. Save to Cache
+                    st.session_state.processed_file = uploaded_file.name
+                    st.session_state.anonymized_content = anonymized_content
+                    st.session_state.data_content = data_content
+                    st.session_state.data_type = data_type
+            
+            else:
+                # Retrieve from cache (Zero Latency)
+                anonymized_content = st.session_state.anonymized_content
+                data_content = st.session_state.data_content
+                data_type = st.session_state.data_type
 
                 # --- Data Preview ---
                 st.subheader("Data Inspector")
@@ -178,13 +204,16 @@ def main_app(user):
 
                 # --- AI Analysis ---
                 st.subheader("🤖 AI Security Analyst")
-                ai_engine = AIEngine()
+                ai_engine = AIEngine(model_id=selected_model_id)
                 
-                # Context Prep
+                # Context Prep & Quota Management
+                with st.expander("⚙️ Analysis Settings & Quota Code", expanded=False):
+                    analysis_cap = st.slider("Max Rows/Chars to Analyze", min_value=10, max_value=1000, value=50, step=10, help="Higher values provide more context but use more API quota.")
+                    st.caption(f"ℹ️ Estimated Token Usage: ~{analysis_cap * 20} tokens (Flash Model Cost: Very Low)")
                 if data_type == "dataframe":
-                    data_context = anonymized_content.head(5000).to_markdown(index=False)
+                    data_context = anonymized_content.head(analysis_cap).to_markdown(index=False)
                 else:
-                    data_context = anonymized_content[:5000]
+                    data_context = anonymized_content[:analysis_cap * 100] # Approx chars
 
                 if st.button("Run Full Security Audit"):
                     if not os.getenv("GEMINI_API_KEY"):
