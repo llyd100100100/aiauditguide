@@ -119,11 +119,23 @@ class AIEngine:
 
                 ### INSTRUCTION
                 Answer the user's question based on the log chunk provided.
-                **IMPORTANT:**
-                1. first write your answer in **ENGLISH**.
-                2. Then provide a **KOREAN TRANSLATION (한국어 번역)** below it.
-                3. Use clear bullet points.
-                4. **Insert an empty line between each finding/point** for better readability. (항목 사이 공백 추가)
+                
+                **STEP 1: ENGLISH RESPONSE**
+                - Answer in clear, professional English.
+                - Use bullet points.
+                - Keep related lines TIGHT (single spacing).
+                - Use DOUBLE NEWLINE only between major points/findings.
+
+                **STEP 2: KOREAN TRANSLATION (Verification)**
+                - You MUST provide a **Korean Translation** of your answer below a separator.
+                - Translate accurately and naturally for a Korean auditor.
+                
+                **OUTPUT FORMAT:**
+                [English Answer]
+                
+                --- (Separator)
+                
+                [Korean Translation]
                 
                 LOG CHUNK {i+1}:
                 {chunk}
