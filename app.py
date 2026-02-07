@@ -185,7 +185,8 @@ def main_app(user):
                 data_content = st.session_state.data_content
                 data_type = st.session_state.data_type
 
-                # --- Data Preview ---
+            # --- Data Preview ---
+            if 'anonymized_content' in locals() and anonymized_content is not None:
                 st.subheader("Data Inspector")
                 view_mode = st.radio("View Mode:", ["Anonymized (Safe)", "Original (Risk)"], horizontal=True)
                 
@@ -210,6 +211,7 @@ def main_app(user):
                 with st.expander("⚙️ Analysis Settings & Quota Code", expanded=False):
                     analysis_cap = st.slider("Max Rows/Chars to Analyze", min_value=10, max_value=1000, value=50, step=10, help="Higher values provide more context but use more API quota.")
                     st.caption(f"ℹ️ Estimated Token Usage: ~{analysis_cap * 20} tokens (Flash Model Cost: Very Low)")
+                
                 if data_type == "dataframe":
                     data_context = anonymized_content.head(analysis_cap).to_markdown(index=False)
                 else:
@@ -228,11 +230,11 @@ def main_app(user):
                 user_query = st.text_input("Ask specific question")
                 if st.button("Ask AI"):
                     if user_query and os.getenv("GEMINI_API_KEY"):
-                         with st.spinner("Consulting..."):
-                            answer = ai_engine.analyze_log(data_context, user_query=user_query)
-                            st.markdown(f"**A:** {answer}")
-                            # Log to Cloud
-                            cloud.log_chat(user_email, user_query, answer)
+                            with st.spinner("Consulting..."):
+                                answer = ai_engine.analyze_log(data_context, user_query=user_query)
+                                st.markdown(f"**A:** {answer}")
+                                # Log to Cloud
+                                cloud.log_chat(user_email, user_query, answer)
 
         except Exception as e:
             st.error(f"Error: {e}")
